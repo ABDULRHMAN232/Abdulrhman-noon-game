@@ -38,6 +38,15 @@
   .big:active { transform:translateY(3px); box-shadow:0 2px 0 var(--ink); }
   .credits { margin-top:14px; text-align:center; font:400 15px 'Tajawal'; direction:ltr; color:#333; }
   .credits b { font-weight:900; color:#111; }
+  .lbbox { margin:10px 0 0; text-align:center; }
+  .lbbox h3 { margin:0 0 6px; font:900 22px 'Tajawal'; }
+  .lbrow { display:grid; grid-template-columns:34px 1fr 74px 44px; gap:6px; align-items:center; padding:4px 10px; border-radius:10px; font:700 16px 'Tajawal'; text-align:right; }
+  .lbrow:nth-child(even) { background:rgba(0,0,0,.06); }
+  .lbrow.me { background:rgba(99,219,176,.55); outline:2px solid var(--ink); }
+  .lbrow.head { font-size:13px; opacity:.7; background:none; }
+  .lbrow span:nth-child(2) { direction:ltr; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lbempty { padding:10px; opacity:.7; }
+  #lb { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); z-index:13; }
   #creditsCorner { position:fixed; bottom:10px; right:14px; z-index:4; font:700 13px 'Tajawal'; direction:ltr; color:#fff; background:rgba(0,0,0,.4); padding:4px 12px; border-radius:999px; pointer-events:none; }
 
   #custom { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:12; }
@@ -57,6 +66,7 @@
 <div id="topleft">
   <button class="pill" id="muteBtn">🔇 الصوت مكتوم</button>
   <button class="pill" id="helpBtn">؟</button>
+  <button class="pill" id="lbBtn">🏆</button>
 </div>
 <div id="playerCard"><small>اللاعب</small><b id="pcName"></b></div>
 <div id="hud">
@@ -97,8 +107,15 @@
 <div id="win"><div class="card" style="transform:none; text-align:center">
   <h2>🎉 مبروك! وصلت للنهاية</h2>
   <p id="winStats"></p>
+  <div id="winLb" class="lbbox"></div>
   <button class="big" id="againBtn">العب مرة ثانية</button>
   <div class="credits">Credits: <b>Abdulrhman Alsnaidi</b> • <b>abdulrhman</b></div>
+</div></div>
+
+<div id="lb"><div class="card" style="transform:none">
+  <div id="lbList" class="lbbox"></div>
+  <button class="big" id="lbClose">إغلاق</button>
+  <button class="pill" id="lbClear" style="margin:12px auto 0; display:block; font-size:13px">مسح النتائج</button>
 </div></div>
 
 <div id="joy"><div id="knob"></div></div>
@@ -405,9 +422,36 @@ function stepPhysics(dt) {
 }
 function win() {
   state.won = true; beep(988, .4, 'triangle', .1);
-  document.getElementById('winStats').textContent = `الوقت: ${state.time.toFixed(1)} ثانية  •  مرات السقوط: ${state.deaths}`;
+  const rank = lbAdd(playerName, state.time, state.deaths);
+  document.getElementById('winStats').textContent = `الوقت: ${state.time.toFixed(1)} ثانية  •  مرات السقوط: ${state.deaths}` + (rank >= 0 ? `  •  🏆 المركز ${rank + 1}` : '');
+  renderLb(document.getElementById('winLb'), rank);
   document.getElementById('win').style.display = 'flex';
 }
+
+// =============== LEADERBOARD (local, saved in this browser) ===============
+const LB_KEY = 'obbylox_leaderboard_v1';
+let playerName = 'Player';
+function lbLoad() { try { const l = JSON.parse(localStorage.getItem(LB_KEY)); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+function lbStore(list) { try { localStorage.setItem(LB_KEY, JSON.stringify(list)); } catch (e) {} }
+function lbAdd(name, time, deaths) {
+  const entry = { name, time: Math.round(time * 100) / 100, deaths, ts: Date.now() };
+  const list = lbLoad(); list.push(entry);
+  list.sort((a, b) => a.time - b.time || a.deaths - b.deaths);
+  const top = list.slice(0, 10); lbStore(top);
+  return top.findIndex(e => e.ts === entry.ts && e.name === entry.name);
+}
+function renderLb(el, highlight = -1) {
+  el.textContent = '';
+  const h = document.createElement('h3'); h.textContent = '🏆 أفضل الأوقات'; el.appendChild(h);
+  const list = lbLoad();
+  if (!list.length) { const d = document.createElement('div'); d.className = 'lbempty'; d.textContent = 'ما فيه نتائج للحين. خلّص الأوبي أول!'; el.appendChild(d); return; }
+  const row = (cls, cells) => { const r = document.createElement('div'); r.className = 'lbrow ' + cls; cells.forEach(t => { const s = document.createElement('span'); s.textContent = t; r.appendChild(s); }); el.appendChild(r); };
+  row('head', ['#', 'الاسم', 'الوقت', '💀']);
+  list.forEach((e, i) => row(i === highlight ? 'me' : '', [i + 1, e.name, e.time.toFixed(1) + 'ث', e.deaths]));
+}
+document.getElementById('lbBtn').onclick = () => { renderLb(document.getElementById('lbList')); document.getElementById('lb').style.display = 'flex'; };
+document.getElementById('lbClose').onclick = () => document.getElementById('lb').style.display = 'none';
+document.getElementById('lbClear').onclick = () => { if (confirm('تبي تمسح كل النتائج؟')) { lbStore([]); renderLb(document.getElementById('lbList')); } };
 
 // =============== INPUT ===============
 addEventListener('keydown', e => {
@@ -459,7 +503,7 @@ const drawSw = () => { swatches(sSw, COLORS, () => look.shirt, setShirt); swatch
 drawSw();
 document.getElementById('enterBtn').onclick = () => {
   const name = (document.getElementById('nameIn').value.trim() || 'Player').slice(0, 16);
-  tag = nameTag(name); avatar.add(tag); document.getElementById('pcName').textContent = name;
+  playerName = name; tag = nameTag(name); avatar.add(tag); document.getElementById('pcName').textContent = name;
   document.getElementById('start').style.display = 'none';
   ['playerCard', 'bottom'].forEach(id => document.getElementById(id).style.display = id === 'bottom' ? 'flex' : 'block');
   state.mode = 'play'; P.spawn = { x: 0, y: 0.05, z: 12 }; respawn(false); cam.yaw = 0; beep(700, .12);
