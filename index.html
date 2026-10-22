@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Obbylox | أوبي لوكس</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --paper:#fff8ea; --mint:#63dbb0; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; font-family:'Tajawal',system-ui,sans-serif; background:#9fe0ff; touch-action:none; user-select:none; -webkit-user-select:none; }
+  canvas#gl { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .pill { background:var(--paper); border:3px solid var(--ink); border-radius:999px; padding:8px 16px; font:700 16px 'Tajawal'; color:var(--ink); cursor:pointer; box-shadow:0 3px 0 var(--ink); }
+  .pill:active { transform:translateY(2px); box-shadow:0 1px 0 var(--ink); }
+  #topleft { position:fixed; top:12px; left:12px; display:flex; gap:8px; direction:ltr; z-index:5; }
+  #playerCard { position:fixed; top:12px; right:12px; background:rgba(20,20,28,.85); color:#fff; border-radius:14px; padding:8px 16px; text-align:center; z-index:5; border:2px solid #000; display:none; }
+  #playerCard small { display:block; color:var(--mint); font-size:12px; }
+  #playerCard b { font-size:20px; }
+  #hud { position:fixed; top:12px; left:50%; transform:translateX(-50%); display:none; gap:10px; z-index:5; align-items:center; }
+  #hud .stat { background:rgba(20,20,28,.85); color:#fff; border-radius:12px; padding:6px 14px; font-weight:700; border:2px solid #000; }
+  #bottom { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); display:none; gap:12px; z-index:5; }
+  #toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:var(--paper); border:3px solid var(--ink); border-radius:16px; padding:10px 18px; font-weight:700; z-index:9; display:none; max-width:90vw; text-align:center; }
+
+  #start { position:fixed; inset:0; display:flex; align-items:center; justify-content:flex-end; padding:24px 6vw; z-index:10; }
+  .card { width:min(440px, 92vw); background:var(--paper); border:4px solid var(--ink); border-radius:26px; padding:22px 24px; box-shadow:10px 10px 0 rgba(0,0,0,.25);
+          background-image:repeating-linear-gradient(transparent 0 31px, rgba(60,120,200,.13) 31px 32px); transform:rotate(1.2deg); }
+  .card h1 { margin:0; font:900 54px/1 'Tajawal'; letter-spacing:-1px; direction:ltr; text-align:right; text-shadow:3px 3px 0 #63dbb0; }
+  .card h2 { margin:4px 0 8px; font:900 38px/1.1 'Tajawal'; color:#9a7cff; text-shadow:2px 2px 0 #63dbb0; }
+  .bars { display:flex; gap:8px; margin:8px 0 14px; } .bars i { flex:1; height:6px; border:2px solid var(--ink); border-radius:6px; }
+  .card p { font:400 24px 'Tajawal'; margin:4px 0 12px; }
+  label { display:block; font-weight:700; font-size:14px; margin:8px 0 6px; }
+  input[type=text] { width:100%; padding:12px 16px; font:700 22px 'Tajawal'; border:4px solid var(--ink); border-radius:16px; background:#fff; direction:ltr; text-align:center; outline:none; }
+  .swatches { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .sw { width:38px; height:38px; border-radius:11px; border:3px solid var(--ink); cursor:pointer; }
+  .sw.sel { outline:4px solid rgba(99,219,176,.9); transform:scale(1.12); }
+  .big { width:100%; margin-top:16px; padding:14px; font:700 28px 'Tajawal'; background:var(--mint); border:4px solid var(--ink); border-radius:18px; cursor:pointer; box-shadow:0 5px 0 var(--ink); }
+  .big:active { transform:translateY(3px); box-shadow:0 2px 0 var(--ink); }
+  .credits { margin-top:14px; text-align:center; font:400 15px 'Tajawal'; direction:ltr; color:#333; }
+  .credits b { font-weight:900; color:#111; }
+  #creditsCorner { position:fixed; bottom:10px; right:14px; z-index:4; font:700 13px 'Tajawal'; direction:ltr; color:#fff; background:rgba(0,0,0,.4); padding:4px 12px; border-radius:999px; pointer-events:none; }
+
+  #custom { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:12; }
+  #win { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.45); z-index:12; }
+
+  #joy { position:fixed; left:24px; bottom:24px; width:120px; height:120px; border-radius:50%; background:rgba(255,255,255,.3); display:none; z-index:6; }
+  #joy div { position:absolute; width:50px; height:50px; border-radius:50%; background:rgba(255,255,255,.8); left:35px; top:35px; }
+  #jumpBtn { position:fixed; right:28px; bottom:34px; width:90px; height:90px; border-radius:50%; background:rgba(255,255,255,.5); border:3px solid #fff; display:none; z-index:6; font:900 18px 'Tajawal'; align-items:center; justify-content:center; }
+  @media (pointer:coarse) { #joy { display:block; } #jumpBtn { display:flex; } }
+  @media (max-width:700px) { #start { justify-content:center; align-items:flex-end; } .card h1 { font-size:40px; } .card h2 { font-size:28px; } }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="topleft">
+  <button class="pill" id="muteBtn">🔇 الصوت مكتوم</button>
+  <button class="pill" id="helpBtn">؟</button>
+</div>
+<div id="playerCard"><small>اللاعب</small><b id="pcName"></b></div>
+<div id="hud">
+  <div class="stat">المرحلة <span id="hStage">0</span>/<span id="hTotal">5</span></div>
+  <div class="stat">⏱ <span id="hTime">0.0</span>ث</div>
+  <div class="stat">💀 <span id="hDeaths">0</span></div>
+  <button class="pill" id="lobbyBtn">العودة للصالة</button>
+</div>
+<div id="bottom">
+  <button class="pill" id="customBtn">تخصيص الشخصية</button>
+  <button class="pill" id="randBtn">تلوين</button>
+</div>
+<div id="toast"></div>
+<div id="creditsCorner">Made by Abdulrhman Alsnaidi (abdulrhman)</div>
+
+<div id="start">
+  <div class="card">
+    <h1>Obbylox</h1>
+    <h2>اوصل للنهاية!</h2>
+    <div class="bars"><i style="background:#6fd1f0"></i><i style="background:#9a7cff"></i><i style="background:#ff6b6b"></i><i style="background:#ffd93d"></i><i style="background:#63dbb0"></i></div>
+    <p>جاهز للتحدي؟</p>
+    <label>اسمك في اللعبة</label>
+    <input type="text" id="nameIn" maxlength="16" placeholder="Player" autocomplete="off">
+    <label>لون شخصيتك</label>
+    <div class="swatches" id="startSw"></div>
+    <button class="big" id="enterBtn">ادخل اللعبة</button>
+    <div class="credits">Credits: <b>Abdulrhman Alsnaidi</b> • <b>abdulrhman</b></div>
+  </div>
+</div>
+
+<div id="custom"><div class="card" style="transform:none">
+  <h2 style="font-size:30px">تخصيص الشخصية</h2>
+  <label>لون القميص</label><div class="swatches" id="shirtSw"></div>
+  <label>لون البنطلون</label><div class="swatches" id="pantsSw"></div>
+  <button class="big" id="customOk">تم</button>
+</div></div>
+
+<div id="win"><div class="card" style="transform:none; text-align:center">
+  <h2>🎉 مبروك! وصلت للنهاية</h2>
+  <p id="winStats"></p>
+  <button class="big" id="againBtn">العب مرة ثانية</button>
+  <div class="credits">Credits: <b>Abdulrhman Alsnaidi</b> • <b>abdulrhman</b></div>
+</div></div>
+
+<div id="joy"><div id="knob"></div></div>
+<div id="jumpBtn">قفز</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+// =============== BASIC SETUP ===============
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fe0ff);
+scene.fog = new THREE.Fog(0x9fe0ff, 90, 300);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 600);
+function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xbfd8ff, 1.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 });
+sun.shadow.bias = -0.0005;
+scene.add(sun, sun.target);
+
+// =============== WORLD HELPERS ===============
+const solids = [], kills = [], movers = [], checkpoints = [];
+function refreshBox(c) {
+  const p = c.m.position;
+  c.minX = p.x - c.w / 2; c.maxX = p.x + c.w / 2;
+  c.minY = p.y - c.h / 2; c.maxY = p.y + c.h / 2;
+  c.minZ = p.z - c.d / 2; c.maxZ = p.z + c.d / 2;
+}
+function addBox(x, y, z, w, h, d, color, o = {}) {
+  const mat = o.mat || new THREE.MeshStandardMaterial({ color, roughness: 0.65, flatShading: true });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; scene.add(m);
+  if (o.edges) { const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: .35 })); m.add(e); }
+  const c = { m, w, h, d, dx: 0, dy: 0, dz: 0, bx: x, by: y, bz: z, ...o };
+  refreshBox(c);
+  if (o.solid === false) return c;
+  (o.kill ? kills : solids).push(c);
+  if (o.move) movers.push(c);
+  return c;
+}
+function decor(x, y, z, w, h, d, color) { return addBox(x, y, z, w, h, d, color, { solid: false }); }
+function textTexture(text, bg, fg = '#111', w = 512, h = 160, font = 'bold 76px Tajawal, sans-serif') {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#111'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
+  g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 4);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+function sign(text, bg, x, y, z, w = 5, ry = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, w * 0.31, 0.2), [0,1,2,3].map(() => new THREE.MeshStandardMaterial({ color: 0x222222 })).concat([
+    new THREE.MeshBasicMaterial({ map: textTexture(text, bg) }), new THREE.MeshStandardMaterial({ color: 0x222222 })]));
+  m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = true; scene.add(m); return m;
+}
+
+// =============== LOBBY (HUB) ===============
+const HUB_PORTAL = new THREE.Vector3(0, 0, -14);
+(function buildHub() {
+  // checker floor
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const g = cv.getContext('2d'); g.fillStyle = '#e4dfcf'; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = '#d3cdb8'; g.fillRect(0, 0, 64, 64); g.fillRect(64, 64, 64, 64);
+  const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(12, 12); tex.colorSpace = THREE.SRGBColorSpace;
+  addBox(0, -0.5, 0, 48, 1, 48, 0, { mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 }) });
+
+  // lockers along the back wall
+  const lockerCols = [0x1a8ea6, 0x1f9bb5];
+  for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+    const x = side * (6 + i * 2.2);
+    addBox(x, 2, -22, 2, 4, 1.8, lockerCols[i % 2], { edges: true });
+    decor(x, 3.2, -21.05, 1.2, 0.3, 0.05, 0x0c6073);
+  }
+  sign('سباق العقبات', '#f3d35c', 0, 7.5, -16, 6);
+  sign('Made by Abdulrhman Alsnaidi', '#ffffff', 0, 11.5, -21.5, 9);
+  sign('abdulrhman', '#63dbb0', 0, 9.6, -21.5, 5);
+  sign('تحدي الألوان  •  قريباً', '#b58cf0', -11, 5.8, -21, 5.5);
+  sign('اندفاع  •  قريباً', '#8fe3b9', 11, 5.8, -21, 5.5);
+
+  // side doors
+  for (const s of [-1, 1]) for (const z of [-8, 6]) {
+    addBox(s * 23.9, 2, z, 0.4, 4, 2.4, 0x9a5b2e, { edges: true });
+    decor(s * 23.65, 2.4, z, 0.1, 1.2, 0.8, 0xffffff);
+  }
+
+  // colourful carpet
+  const cc = document.createElement('canvas'); cc.width = cc.height = 256; const cg = cc.getContext('2d');
+  cg.fillStyle = '#111'; cg.fillRect(0, 0, 256, 256);
+  const cols = ['#ff5252', '#ffd740', '#69f0ae', '#40c4ff', '#b388ff', '#ff80ab'];
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) { cg.fillStyle = cols[(i * 3 + j * 5 + (i ^ j)) % 6]; cg.fillRect(i * 16 + 3, j * 16 + 3, 10, 10); }
+  const ct = new THREE.CanvasTexture(cc); ct.colorSpace = THREE.SRGBColorSpace;
+  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshStandardMaterial({ map: ct }));
+  carpet.rotation.x = -Math.PI / 2; carpet.position.set(-12, 0.02, 4); carpet.receiveShadow = true; scene.add(carpet);
+
+  // green mat
+  const mat2 = new THREE.Mesh(new THREE.PlaneGeometry(8, 7), new THREE.MeshStandardMaterial({ color: 0x74d6a4 }));
+  mat2.rotation.x = -Math.PI / 2; mat2.position.set(12, 0.02, 4); mat2.receiveShadow = true; scene.add(mat2);
+
+  // book stacks
+  const bc = [0xe8694a, 0xf3d35c, 0x4fb3c8, 0x8c6bd6];
+  for (const [bx, bz] of [[-19, 14], [18, 15], [-4, 17]]) for (let i = 0; i < 4; i++) addBox(bx + (i % 2) * 0.2, 0.3 + i * 0.6, bz, 3 - i * 0.2, 0.6, 2.2, bc[i], { edges: true });
+
+  // portal
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.4, 6, 6), new THREE.MeshStandardMaterial({ color: 0xf0b429, roughness: .4, flatShading: true }));
+  ring.position.set(HUB_PORTAL.x, 3.4, HUB_PORTAL.z); ring.rotation.z = Math.PI / 6; ring.castShadow = true; scene.add(ring);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(2.45, 6), new THREE.MeshBasicMaterial({ color: 0xb6a8ff, transparent: true, opacity: .55, side: THREE.DoubleSide }));
+  inner.position.copy(ring.position); inner.rotation.z = Math.PI / 6; scene.add(inner);
+  window.__portalInner = inner;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.6, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0xf0b429 }));
+  base.position.set(HUB_PORTAL.x, 0.15, HUB_PORTAL.z); base.receiveShadow = true; scene.add(base);
+
+  // floating coloured bars in the sky
+  const barCols = [0xb58cf0, 0xff6b5a, 0xf3d35c, 0x8fe3b9, 0x6fd1f0, 0xffa0c0];
+  window.__floaters = [];
+  for (let i = 0; i < 46; i++) {
+    const a = Math.random() * Math.PI * 2, r = 35 + Math.random() * 90;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(2 + Math.random() * 8, 0.6 + Math.random(), 1 + Math.random() * 2), new THREE.MeshStandardMaterial({ color: barCols[i % 6], flatShading: true }));
+    m.position.set(Math.cos(a) * r, 4 + Math.random() * 50, Math.sin(a) * r - 10); m.rotation.set(Math.random(), Math.random() * 3, Math.random());
+    m.userData = { y: m.position.y, s: Math.random() * 3 }; scene.add(m); __floaters.push(m);
+  }
+  // clouds
+  const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true });
+  for (let i = 0; i < 40; i++) {
+    const grp = new THREE.Group();
+    for (let k = 0; k < 5; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(3 + Math.random() * 3, 0), cm); s.position.set(k * 4 - 8 + Math.random() * 2, Math.random() * 2, Math.random() * 4); grp.add(s); }
+    const a = Math.random() * Math.PI * 2, r = 50 + Math.random() * 200;
+    grp.position.set(Math.cos(a) * r, -22 - Math.random() * 25, Math.sin(a) * r - 60); scene.add(grp);
+  }
+})();
+
+// =============== OBBY COURSE ===============
+const OBBY_Z0 = -80;
+let FINISH = null, TOTAL_STAGES = 0;
+(function buildObby() {
+  const pal = [0xff6b6b, 0xffd93d, 0x6bcb77, 0x4d96ff, 0x9d4edd, 0xff9f1c]; let ci = 0; const col = () => pal[ci++ % pal.length];
+  function cp(x, y, z) {
+    const idx = checkpoints.length;
+    addBox(x, y - 0.5, z, 12, 1, 12, 0x58d6a8, { cp: idx, edges: true });
+    checkpoints.push({ x, y: y + 0.05, z });
+    if (idx > 0) { decor(x + 4.5, y + 2.2, z - 4.5, 0.2, 4.4, 0.2, 0xffffff); decor(x + 5.4, y + 3.8, z - 4.5, 1.6, 1, 0.1, 0x00c853); }
+    return z - 6; // front edge
+  }
+  let y = 0, z = OBBY_Z0;
+  let edge = cp(0, y, z);
+
+  // Stage 1 - jumping steps
+  let zz = edge - 3.5;
+  for (let i = 0; i < 9; i++) { y += 0.4; addBox((i % 2 ? 3 : -3), y - 0.5, zz, 4, 1, 4, col(), { edges: true }); zz -= 6.2; }
+  edge = cp(0, y, zz - 4 + 2);
+
+  // Stage 2 - moving platforms
+  zz = edge - 4;
+  for (let i = 0; i < 6; i++) {
+    addBox(0, y - 0.5, zz, 5, 1, 5, 0xffa94d, { edges: true, move: { ax: 7, ay: 0, az: 0, speed: 1.0 + i * 0.12, phase: i * 1.3 } });
+    zz -= 8.5;
+  }
+  edge = cp(0, y, zz - 2);
+
+  // Stage 3 - beams with kill bricks
+  zz = edge - 16;
+  addBox(0, y - 0.5, zz, 1.8, 1, 30, 0xb0bec5, { edges: true });
+  for (const off of [-8, 0, 8]) addBox(0, y + 0.5, zz + off, 1.8, 1, 1.2, 0xe53935, { kill: true });
+  zz -= 15 + 4.5;
+  addBox(-3, y - 0.5, zz, 3, 1, 3, col(), { edges: true }); zz -= 6;
+  addBox(3, y - 0.5, zz, 3, 1, 3, col(), { edges: true }); zz -= 6;
+  addBox(-3, y - 0.5, zz, 3, 1, 3, col(), { edges: true }); zz -= 6;
+  edge = cp(0, y, zz - 3);
+
+  // Stage 4 - climb
+  zz = edge - 4;
+  for (let i = 0; i < 8; i++) {
+    y += 1.7;
+    const o = { edges: true };
+    if (i === 3 || i === 5) o.move = { ax: 0, ay: 1.8, az: 0, speed: 1.6, phase: i };
+    addBox(i % 2 ? 3 : -3, y - 0.5, zz, 3.4, 1, 3.4, col(), o);
+    zz -= 5.6;
+  }
+  edge = cp(0, y, zz - 3);
+
+  // Stage 5 - the gauntlet
+  zz = edge - 4;
+  for (let i = 0; i < 7; i++) {
+    addBox(0, y - 0.5, zz, 2.6, 1, 2.6, col(), { edges: true });
+    if (i % 2 === 1) addBox(0, y + 0.9, zz + 3.2, 1.2, 1.2, 1.2, 0xe53935, { kill: true, move: { ax: 5, ay: 0, az: 0, speed: 2 + i * .2, phase: i } });
+    zz -= 6.8;
+  }
+  // finish
+  FINISH = addBox(0, y - 0.5, zz - 4, 14, 1, 14, 0xffd700, { finish: true, edges: true });
+  const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.9, 2, 8), new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: .6, roughness: .3 }));
+  tr.position.set(0, y + 1.2, zz - 4); tr.castShadow = true; scene.add(tr);
+  const cup = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.6, 1.4, 12), tr.material); cup.position.set(0, y + 2.9, zz - 4); scene.add(cup);
+  sign('🏁 النهاية 🏁', '#ffd700', 0, y + 6, zz - 10, 8);
+  sign('Made by Abdulrhman Alsnaidi', '#ffffff', 0, y + 3.2, zz - 10, 8);
+  TOTAL_STAGES = checkpoints.length - 1;
+  document.getElementById('hTotal').textContent = TOTAL_STAGES;
+})();
+
+// =============== CHARACTER ===============
+const COLORS = ['#ff9f1c', '#3b82f6', '#ff7eb6', '#7c4dff', '#14b8a6', '#ef4444'];
+const look = { shirt: COLORS[1], pants: '#374151' };
+function makeChar() {
+  const g = new THREE.Group();
+  const M = c => new THREE.MeshStandardMaterial({ color: c, roughness: .8, flatShading: true });
+  const skin = 0xc68642, shirtM = M(look.shirt), pantsM = M(look.pants);
+  const mk = (w, h, d, m, x, y, z, top) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.castShadow = true; const p = new THREE.Group(); p.position.set(x, y, z); mesh.position.y = top ? -h / 2 : 0; p.add(mesh); g.add(p); return p; };
+  const legL = mk(.34, .7, .36, pantsM, -.19, .7, 0, true), legR = mk(.34, .7, .36, pantsM, .19, .7, 0, true);
+  mk(.76, .8, .42, shirtM, 0, 1.1, 0);
+  const armL = mk(.25, .8, .3, shirtM, -.51, 1.48, 0, true), armR = mk(.25, .8, .3, shirtM, .51, 1.48, 0, true);
+  const head = mk(.52, .52, .52, M(skin), 0, 1.78, 0);
+  mk(.56, .18, .56, M(0x1b1b1b), 0, 2.02, 0);
+  mk(.08, .08, .02, M(0x111111), -.12, 1.8, .27); mk(.08, .08, .02, M(0x111111), .12, 1.8, .27);
+  mk(.2, .04, .02, M(0x5a2a1a), 0, 1.66, .27);
+  g.userData = { legL, legR, armL, armR, shirtM, pantsM };
+  return g;
+}
+function nameTag(name) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96; const g = cv.getContext('2d');
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(8, 8, 496, 80, 30); g.fill();
+  g.fillStyle = '#fff'; g.font = 'bold 52px Tajawal, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(name, 256, 50);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthTest: false, transparent: true }));
+  s.scale.set(3, 0.56, 1); s.position.y = 2.75; s.renderOrder = 10; return s;
+}
+let avatar = makeChar(); scene.add(avatar);
+let tag = null;
+function applyLook() { avatar.userData.shirtM.color.set(look.shirt); avatar.userData.pantsM.color.set(look.pants); }
+
+// =============== PLAYER / PHYSICS ===============
+const P = { x: 0, y: 0, z: 12, vx: 0, vy: 0, vz: 0, hw: 0.4, h: 2.0, ground: false, ride: null, coyote: 0, face: 0, spawn: { x: 0, y: 0.05, z: 12 }, cp: 0, inObby: false };
+const state = { mode: 'menu', time: 0, deaths: 0, t: 0, won: false, started: false };
+const keys = {}; const joy = { x: 0, y: 0 }; let jumpHeld = false, jumpBuf = 0;
+const cam = { yaw: 0, pitch: 0.45, dist: 11 };
+
+function overlap(c, e = 0) {
+  return P.x + P.hw > c.minX - e && P.x - P.hw < c.maxX + e && P.y + P.h > c.minY - e && P.y < c.maxY + e && P.z + P.hw > c.minZ - e && P.z - P.hw < c.maxZ + e;
+}
+function respawn(countDeath) {
+  if (countDeath && P.inObby) { state.deaths++; beep(180, .25, 'sawtooth'); }
+  P.x = P.spawn.x; P.y = P.spawn.y; P.z = P.spawn.z; P.vx = P.vy = P.vz = 0; P.ride = null;
+}
+function enterObby() {
+  P.inObby = true; P.cp = 0; P.spawn = { x: checkpoints[0].x, y: checkpoints[0].y, z: checkpoints[0].z };
+  state.time = 0; state.deaths = 0; state.won = false; state.started = false; respawn(false); cam.yaw = 0;
+  document.getElementById('hud').style.display = 'flex'; toast('بالتوفيق! اوصل للنهاية 🏁'); beep(660, .15);
+}
+function goLobby() {
+  P.inObby = false; P.spawn = { x: 0, y: 0.05, z: -8 }; respawn(false); cam.yaw = Math.PI;
+  document.getElementById('hud').style.display = 'none';
+}
+
+function stepPhysics(dt) {
+  state.t += dt;
+  for (const c of movers) {
+    const m = c.move, k = Math.sin(state.t * m.speed + m.phase), p = c.m.position;
+    const nx = c.bx + k * m.ax, ny = c.by + k * m.ay, nz = c.bz + k * m.az;
+    c.dx = nx - p.x; c.dy = ny - p.y; c.dz = nz - p.z; p.set(nx, ny, nz); refreshBox(c);
+  }
+  if (P.ride && P.ride.move) { P.x += P.ride.dx; P.y += P.ride.dy; P.z += P.ride.dz; }
+  P.ride = null;
+
+  // input -> camera relative movement
+  let fx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
+  let fz = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y;
+  const len = Math.hypot(fx, fz); if (len > 1) { fx /= len; fz /= len; }
+  const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
+  const tx = (cy * fx - sy * fz) * 9, tz = (-sy * fx - cy * fz) * 9;
+  const a = P.ground ? 18 : 8; const k = Math.min(1, a * dt);
+  P.vx += (tx - P.vx) * k; P.vz += (tz - P.vz) * k;
+  if (Math.hypot(tx, tz) > 0.5) { const want = Math.atan2(tx, tz); let d = want - P.face; d = Math.atan2(Math.sin(d), Math.cos(d)); P.face += d * Math.min(1, 14 * dt); }
+
+  if (jumpBuf > 0) jumpBuf -= dt;
+  if (jumpBuf > 0 && P.coyote > 0) { P.vy = 12.5; jumpBuf = 0; P.coyote = 0; beep(520, .08, 'square', .04); }
+  if (!jumpHeld && P.vy > 5) P.vy -= 40 * dt;
+  P.vy = Math.max(P.vy - 32 * dt, -55);
+
+  P.x += P.vx * dt;
+  for (const c of solids) if (overlap(c)) { P.x = P.x < (c.minX + c.maxX) / 2 ? c.minX - P.hw - 0.001 : c.maxX + P.hw + 0.001; P.vx = 0; }
+  P.z += P.vz * dt;
+  for (const c of solids) if (overlap(c)) { P.z = P.z < (c.minZ + c.maxZ) / 2 ? c.minZ - P.hw - 0.001 : c.maxZ + P.hw + 0.001; P.vz = 0; }
+  P.y += P.vy * dt; P.ground = false;
+  for (const c of solids) if (overlap(c)) {
+    if (P.y + P.h / 2 > (c.minY + c.maxY) / 2) { P.y = c.maxY; if (P.vy < 0) P.vy = 0; P.ground = true; P.ride = c; }
+    else { P.y = c.minY - P.h; if (P.vy > 0) P.vy = 0; }
+  }
+  P.coyote = P.ground ? 0.1 : P.coyote - dt;
+
+  if (P.inObby) {
+    if (state.started || P.ground) state.started = true;
+    for (const c of kills) if (overlap(c, 0.05)) { respawn(true); break; }
+    if (P.ride && P.ride.cp !== undefined && P.ride.cp > P.cp) {
+      P.cp = P.ride.cp; P.spawn = { ...checkpoints[P.cp] }; toast(`✔ المرحلة ${P.cp} تمت!`); beep(880, .2, 'triangle', .08);
+    }
+    if (P.ride && P.ride.finish && !state.won) win();
+  } else {
+    const dx = P.x - HUB_PORTAL.x, dz = P.z - HUB_PORTAL.z;
+    if (Math.hypot(dx, dz) < 2.3 && P.y < 3) enterObby();
+  }
+  if (P.y < -30) respawn(true);
+}
+function win() {
+  state.won = true; beep(988, .4, 'triangle', .1);
+  document.getElementById('winStats').textContent = `الوقت: ${state.time.toFixed(1)} ثانية  •  مرات السقوط: ${state.deaths}`;
+  document.getElementById('win').style.display = 'flex';
+}
+
+// =============== INPUT ===============
+addEventListener('keydown', e => {
+  if (state.mode !== 'play' || e.target.tagName === 'INPUT') return;
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); if (!jumpHeld) jumpBuf = 0.12; jumpHeld = true; }
+});
+addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Space') jumpHeld = false; });
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => { if (!drag) return; cam.yaw -= (e.clientX - drag.x) * 0.006; cam.pitch = Math.min(1.35, Math.max(0.05, cam.pitch + (e.clientY - drag.y) * 0.005)); drag = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointerup', () => drag = null);
+canvas.addEventListener('wheel', e => { cam.dist = Math.min(24, Math.max(4, cam.dist + e.deltaY * 0.01)); }, { passive: true });
+// touch joystick + jump
+const joyEl = document.getElementById('joy'), knob = document.getElementById('knob'); let joyId = null;
+joyEl.addEventListener('pointerdown', e => { joyId = e.pointerId; joyEl.setPointerCapture(e.pointerId); moveJoy(e); });
+joyEl.addEventListener('pointermove', e => { if (e.pointerId === joyId) moveJoy(e); });
+const endJoy = e => { if (e.pointerId === joyId) { joyId = null; joy.x = joy.y = 0; knob.style.transform = ''; } };
+joyEl.addEventListener('pointerup', endJoy); joyEl.addEventListener('pointercancel', endJoy);
+function moveJoy(e) { const r = joyEl.getBoundingClientRect(); let x = (e.clientX - r.left - 60) / 50, y = (e.clientY - r.top - 60) / 50; const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } joy.x = x; joy.y = y; knob.style.transform = `translate(${x * 35}px,${y * 35}px)`; }
+const jb = document.getElementById('jumpBtn');
+jb.addEventListener('pointerdown', e => { e.preventDefault(); jumpHeld = true; jumpBuf = 0.12; });
+jb.addEventListener('pointerup', () => jumpHeld = false); jb.addEventListener('pointercancel', () => jumpHeld = false);
+
+// =============== AUDIO ===============
+let actx = null, muted = true;
+function beep(f, d, type = 'sine', vol = 0.06) {
+  if (muted) return; try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(); o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(vol, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + d);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + d);
+  } catch (e) {}
+}
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.onclick = () => { muted = !muted; muteBtn.textContent = muted ? '🔇 الصوت مكتوم' : '🔊 الصوت يعمل'; beep(600, .1); };
+document.getElementById('helpBtn').onclick = () => toast('WASD أو الأسهم للحركة • مسافة للقفز • اسحب الماوس لتدوير الكاميرا', 4500);
+let toastT; function toast(msg, ms = 2200) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', ms); }
+
+// =============== UI ===============
+function swatches(el, list, getter, setter) {
+  el.innerHTML = '';
+  list.forEach(c => { const d = document.createElement('div'); d.className = 'sw' + (getter() === c ? ' sel' : ''); d.style.background = c; d.onclick = () => { setter(c); swatches(el, list, getter, setter); }; el.appendChild(d); });
+}
+const PANTS = ['#374151', '#1e3a8a', '#7f1d1d', '#14532d', '#78350f', '#111111'];
+const sSw = document.getElementById('startSw'), shSw = document.getElementById('shirtSw'), pSw = document.getElementById('pantsSw');
+const setShirt = c => { look.shirt = c; applyLook(); };
+const drawSw = () => { swatches(sSw, COLORS, () => look.shirt, setShirt); swatches(shSw, COLORS, () => look.shirt, setShirt); swatches(pSw, PANTS, () => look.pants, c => { look.pants = c; applyLook(); }); };
+drawSw();
+document.getElementById('enterBtn').onclick = () => {
+  const name = (document.getElementById('nameIn').value.trim() || 'Player').slice(0, 16);
+  tag = nameTag(name); avatar.add(tag); document.getElementById('pcName').textContent = name;
+  document.getElementById('start').style.display = 'none';
+  ['playerCard', 'bottom'].forEach(id => document.getElementById(id).style.display = id === 'bottom' ? 'flex' : 'block');
+  state.mode = 'play'; P.spawn = { x: 0, y: 0.05, z: 12 }; respawn(false); cam.yaw = 0; beep(700, .12);
+};
+document.getElementById('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('enterBtn').click(); });
+document.getElementById('customBtn').onclick = () => { drawSw(); document.getElementById('custom').style.display = 'flex'; };
+document.getElementById('customOk').onclick = () => document.getElementById('custom').style.display = 'none';
+document.getElementById('randBtn').onclick = () => { look.shirt = COLORS[Math.random() * COLORS.length | 0]; look.pants = PANTS[Math.random() * PANTS.length | 0]; applyLook(); beep(800, .08); };
+document.getElementById('lobbyBtn').onclick = goLobby;
+document.getElementById('againBtn').onclick = () => { document.getElementById('win').style.display = 'none'; enterObby(); };
+
+// =============== MAIN LOOP ===============
+const clock = new THREE.Clock(); const camTarget = new THREE.Vector3(), camPos = new THREE.Vector3();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 1 / 20);
+  if (state.mode === 'play' && !state.won) {
+    const sub = 2; for (let i = 0; i < sub; i++) stepPhysics(dt / sub);
+    if (P.inObby && state.started) state.time += dt;
+  } else if (state.mode === 'menu') { state.t += dt; }
+
+  // avatar pose
+  avatar.position.set(P.x, P.y, P.z); avatar.rotation.y = P.face;
+  const u = avatar.userData, spd = Math.hypot(P.vx, P.vz) / 9, sw = Math.sin(performance.now() * 0.012) * 0.9 * Math.min(1, spd);
+  if (P.ground || state.mode !== 'play') { u.legL.rotation.x = sw; u.legR.rotation.x = -sw; u.armL.rotation.x = -sw; u.armR.rotation.x = sw; }
+  else { u.legL.rotation.x = 0.4; u.legR.rotation.x = -0.4; u.armL.rotation.x = Math.PI * 0.85; u.armR.rotation.x = Math.PI * 0.85; }
+  avatar.visible = state.mode === 'play';
+
+  // camera
+  if (state.mode === 'menu') {
+    const a = performance.now() * 0.00008;
+    camera.position.set(Math.sin(a) * 6 + 8, 6, 22); camera.lookAt(0, 4, -8);
+  } else {
+    camTarget.set(P.x, P.y + 1.7, P.z);
+    camPos.set(camTarget.x + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, camTarget.y + Math.sin(cam.pitch) * cam.dist, camTarget.z + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist);
+    if (camPos.y < 0.5 && !P.inObby) camPos.y = 0.5;
+    camera.position.lerp(camPos, 1 - Math.pow(0.0005, dt)); camera.lookAt(camTarget);
+  }
+  sun.position.set(P.x + 30, P.y + 55, P.z + 22); sun.target.position.set(P.x, P.y, P.z); sun.target.updateMatrixWorld();
+
+  // ambient animation
+  const now = performance.now() * 0.001;
+  for (const f of __floaters) { f.position.y = f.userData.y + Math.sin(now + f.userData.s) * 0.8; f.rotation.y += dt * 0.1; }
+  __portalInner.material.opacity = 0.45 + Math.sin(now * 3) * 0.12;
+
+  if (P.inObby) { document.getElementById('hStage').textContent = P.cp; document.getElementById('hTime').textContent = state.time.toFixed(1); document.getElementById('hDeaths').textContent = state.deaths; }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>
